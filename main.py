@@ -42,7 +42,7 @@ log_debug = True
 log_server = True
 log_stderr = False
 
-waiting_for_RLS = True
+waiting_for_RLS = False
 
 global_client_configs = []  # type: List[ClientConfig]
 window_client_configs = dict()  # type: Dict[int, List[ClientConfig]]
@@ -580,14 +580,10 @@ class Client(object):
         elif method == "window/logMessage" and log_server:
             server_log(self.process.args[0],
                        response.get("params").get("message"))
-        elif method == "rustDocument/diagnosticsBegin":
-            waiting_for_RLS = True
-            sublime.active_window().status_message("Waiting on RLS...")
-        elif method == "rustDocument/beginBuild":
-            sublime.active_window().status_message("Waiting on RLS...")
-        elif method == "rustDocument/diagnosticsEnd":
-            waiting_for_RLS = False
-            sublime.active_window().status_message("RLS up to date.")
+        elif method == "window/progress":
+            waiting_for_RLS = response.get("params").get("done") != True
+            if waiting_for_RLS:
+                sublime.active_window().status_message("Waiting on RLS...")
         else:
             debug("Unhandled notification:", method)
 
@@ -1807,13 +1803,13 @@ def wait_on_RLS():
     # after that, assume we missed it
     max_count = 20
     while waiting_for_RLS is False and max_count > 0:
-        sublime.active_window().status_message("Waiting on RLS...")
+        sublime.active_window().status_message("Waiting on RLS to start...")
         time.sleep(0.05)
         max_count -= 1
 
     # wait on RLS to send rustDocument/diagnosticsEnd
     while waiting_for_RLS is True:
-        sublime.active_window().status_message("Waiting on RLS...")
+        sublime.active_window().status_message("Waiting on RLS to finish...")
         time.sleep(0.05)
 
 
